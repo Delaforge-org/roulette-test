@@ -1,12 +1,12 @@
-const { Connection, PublicKey, Keypair, Transaction, TransactionInstruction, /*sendAndConfirmTransaction,*/ ComputeBudgetProgram } = require('@solana/web3.js');
+const { Connection, PublicKey, Keypair, Transaction, TransactionInstruction, SystemProgram, ComputeBudgetProgram } = require('@solana/web3.js');
 const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } = require('@solana/spl-token');
 const fs = require('fs');
 const path = require('path');
 const BN = require('bn.js');
-const { SYNDICA_RPC } = require('./config.js');
+const config = require(path.join(__dirname, 'config.js'));
 
 // --- Конфигурация ---
-const RPC_URL = SYNDICA_RPC;
+const RPC_URL = config.SYNDICA_RPC;
 const IDL_PATH = path.join(__dirname, 'roulette_game.json');
 const WALLETS_BASE_DIR = path.join(process.env.HOME, 'roulette-backend/test-wallets'); // Адаптировано
 const CONCURRENCY_LIMIT = 40; // Увеличено для поддержки высокой скорости

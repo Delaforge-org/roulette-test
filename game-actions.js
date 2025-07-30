@@ -1,10 +1,10 @@
 const { Connection, PublicKey, Keypair, Transaction, TransactionInstruction, sendAndConfirmTransaction, ComputeBudgetProgram } = require('@solana/web3.js');
 const fs = require('fs');
 const path = require('path');
-const { SYNDICA_RPC, PROGRAM_ID } = require('./config.js');
+const config = require(path.join(__dirname, 'config.js'));
 
 // --- Конфигурация ---
-const RPC_URL = SYNDICA_RPC;
+const RPC_URL = config.SYNDICA_RPC;
 const IDL_PATH = path.join(__dirname, 'roulette_game.json');
 const WALLETS_BASE_DIR = path.join(process.env.HOME, 'roulette-backend/test-wallets');
 const CONCURRENCY_LIMIT = 40; // Увеличено для поддержки высокой скорости
@@ -69,7 +69,7 @@ async function startNewRound() {
     const initiator = getRandomBotWallet();
     console.log(`[GameActions] Инициируем новый раунд от имени ${initiator.publicKey.toBase58()}...`);
 
-    const [gameSessionPda] = await PublicKey.findProgramAddress([Buffer.from('game_session')], PROGRAM_ID);
+    const [gameSessionPda] = await PublicKey.findProgramAddress([Buffer.from('game_session')], config.PROGRAM_ID);
 
     const startRoundIx = new TransactionInstruction({
         keys: [
@@ -77,7 +77,7 @@ async function startNewRound() {
             { pubkey: initiator.publicKey, isWritable: true, isSigner: true },
             { pubkey: new PublicKey("11111111111111111111111111111111"), isWritable: false, isSigner: false }, // SystemProgram
         ],
-        programId: PROGRAM_ID,
+        programId: config.PROGRAM_ID,
         data: findInstructionDiscriminator('start_new_round'),
     });
 
@@ -90,7 +90,7 @@ async function closeBets() {
     const closer = getRandomBotWallet();
     console.log(`[GameActions] Закрываем ставки от имени ${closer.publicKey.toBase58()}...`);
 
-    const [gameSessionPda] = await PublicKey.findProgramAddress([Buffer.from('game_session')], PROGRAM_ID);
+    const [gameSessionPda] = await PublicKey.findProgramAddress([Buffer.from('game_session')], config.PROGRAM_ID);
 
     const closeBetsIx = new TransactionInstruction({
         keys: [
@@ -98,7 +98,7 @@ async function closeBets() {
             { pubkey: closer.publicKey, isWritable: true, isSigner: true },
             { pubkey: new PublicKey("11111111111111111111111111111111"), isWritable: false, isSigner: false }, // SystemProgram
         ],
-        programId: PROGRAM_ID,
+        programId: config.PROGRAM_ID,
         data: findInstructionDiscriminator('close_bets'),
     });
 
@@ -111,14 +111,14 @@ async function getRandom() {
     const randomInitiator = getRandomBotWallet();
     console.log(`[GameActions] Запрашиваем случайное число от имени ${randomInitiator.publicKey.toBase58()}...`);
 
-    const [gameSessionPda] = await PublicKey.findProgramAddress([Buffer.from('game_session')], PROGRAM_ID);
+    const [gameSessionPda] = await PublicKey.findProgramAddress([Buffer.from('game_session')], config.PROGRAM_ID);
 
     const getRandomIx = new TransactionInstruction({
         keys: [
             { pubkey: gameSessionPda, isWritable: true, isSigner: false },
             { pubkey: randomInitiator.publicKey, isWritable: true, isSigner: true },
         ],
-        programId: PROGRAM_ID,
+        programId: config.PROGRAM_ID,
         data: findInstructionDiscriminator('get_random'),
     });
 

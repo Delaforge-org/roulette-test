@@ -1,17 +1,21 @@
 // game-orchestrator.js
-
+const path = require('path');
 const { Connection, PublicKey } = require('@solana/web3.js');
 const borsh = require('@coral-xyz/borsh');
+
+// --- ИСПОЛЬЗУЕМ АБСОЛЮТНЫЕ ПУТИ ---
 const { 
     PROGRAM_ID, 
     RPC_URL, 
     BETTING_DURATION_MS, 
     COOLDOWN_AFTER_CLOSE_MS, 
     COOLDOWN_AFTER_RANDOM_MS 
-} = require('./config.js');
-const { startNewRound, closeBets, getRandom } = require('./game-actions.js');
-const { runBettingBots } = require('./bots-betting.js');
-const { runClaimBots } = require('./bot-wins.js');
+} = require(path.join(__dirname, 'config.js'));
+
+const { startNewRound, closeBets, getRandom } = require(path.join(__dirname, 'game-actions.js'));
+const { runBettingBots } = require(path.join(__dirname, 'bots-betting.js'));
+const { runClaimBots } = require(path.join(__dirname, 'bot-wins.js'));
+// --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
 const connection = new Connection(RPC_URL);
 

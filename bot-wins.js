@@ -5,10 +5,10 @@ const path = require('path');
 const borsh = require('@coral-xyz/borsh');
 const axios = require('axios');
 const https = require('https');
-const { SYNDICA_RPC } = require('./config.js');
+const config = require(path.join(__dirname, 'config.js'));
 
 // --- Конфигурация ---
-const RPC_URL = SYNDICA_RPC; // ИЗМЕНЕНО
+const RPC_URL = config.SYNDICA_RPC; // ИЗМЕНЕНО
 const IDL_PATH = path.join(__dirname, 'roulette_game.json'); // ИЗМЕНЕНО
 const WALLETS_BASE_DIR = path.join(process.env.HOME, 'roulette-backend/test-wallets'); // ИЗМЕНЕНО
 const API_BASE_URL = 'https://api.0xroulette.com/api'; // ИЗМЕНЕНО
