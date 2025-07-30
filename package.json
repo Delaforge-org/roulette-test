@@ -1,0 +1,28 @@
+{
+  "name": "roulette-test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "bot-wins.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Delaforge-org/roulette-test.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Delaforge-org/roulette-test/issues"
+  },
+  "homepage": "https://github.com/Delaforge-org/roulette-test#readme",
+  "dependencies": {
+    "@coral-xyz/borsh": "^0.31.1",
+    "@solana/web3.js": "^1.98.2",
+    "axios": "^1.11.0",
+    "bs58": "^6.0.0",
+    "dotenv": "^17.2.1"
+  }
+}
