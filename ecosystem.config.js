@@ -8,6 +8,9 @@ module.exports = {
       cwd: __dirname,
       watch: false,
       autorestart: true,
+      // --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ ---
+      // Отключаем APM от PM2, который ломает require() на сервере
+      pmx: false,
     },
   ],
 }; 
