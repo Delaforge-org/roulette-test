@@ -10,7 +10,7 @@ const config = require(path.join(__dirname, 'config.js'));
 // --- Конфигурация ---
 const RPC_URL = config.SYNDICA_RPC; // ИЗМЕНЕНО
 const IDL_PATH = path.join(__dirname, 'roulette_game.json'); // ИЗМЕНЕНО
-const WALLETS_BASE_DIR = path.join(process.env.HOME, 'roulette-backend/test-wallets'); // ИЗМЕНЕНО
+const WALLETS_BASE_DIR = path.join(__dirname, 'test-wallets'); // ИЗМЕНЕНО
 const API_BASE_URL = 'https://api.0xroulette.com/api'; // ИЗМЕНЕНО
 const CONCURRENCY_LIMIT = 20; // Добавлено для параллельных проверок API
 const DELAY_BETWEEN_BATCHES_MS = 60; // Добавлено
@@ -250,3 +250,5 @@ main().catch(err => {
     console.error(">>> Необработанная критическая ошибка в скрипте:", err);
     process.exit(1);
 });
+
+module.exports = { claimWinnings };

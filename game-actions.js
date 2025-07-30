@@ -6,7 +6,7 @@ const config = require(path.join(__dirname, 'config.js'));
 // --- Конфигурация ---
 const RPC_URL = config.SYNDICA_RPC;
 const IDL_PATH = path.join(__dirname, 'roulette_game.json');
-const WALLETS_BASE_DIR = path.join(process.env.HOME, 'roulette-backend/test-wallets');
+const WALLETS_BASE_DIR = path.join(__dirname, 'test-wallets');
 const CONCURRENCY_LIMIT = 40; // Увеличено для поддержки высокой скорости
 
 // --- Загрузка и настройка ---

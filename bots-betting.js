@@ -8,7 +8,7 @@ const config = require(path.join(__dirname, 'config.js'));
 // --- Конфигурация ---
 const RPC_URL = config.SYNDICA_RPC;
 const IDL_PATH = path.join(__dirname, 'roulette_game.json');
-const WALLETS_BASE_DIR = path.join(process.env.HOME, 'roulette-backend/test-wallets'); // Адаптировано
+const WALLETS_BASE_DIR = path.join(__dirname, 'test-wallets');
 const CONCURRENCY_LIMIT = 40; // Увеличено для поддержки высокой скорости
 const DELAY_BETWEEN_BATCHES_MS = 20; // Уменьшено для увеличения нагрузки до ~80 req/s
 
@@ -397,3 +397,4 @@ async function runBettingBots() { // Переименовываем main в runB
 module.exports = {
     runBettingBots,
 };
+
