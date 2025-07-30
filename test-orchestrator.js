@@ -3,21 +3,28 @@ const path = require('path');
 const { Connection, PublicKey } = require('@solana/web3.js');
 const borsh = require('@coral-xyz/borsh');
 
-// --- ИСПОЛЬЗУЕМ АБСОЛЮТНЫЕ ПУТИ ---
+// --- ИЗМЕНЕНИЕ 1: Правильный импорт конфигурации ---
+// Сначала импортируем весь объект config целиком. Это самый надежный способ.
+const config = require(path.join(__dirname, 'config.js'));
+// Теперь извлекаем нужные нам переменные из этого объекта.
+// Обратите внимание: мы используем SYNDICA_RPC, так как именно это имя используется в config.js
 const { 
     PROGRAM_ID, 
-    RPC_URL, 
+    SYNDICA_RPC, 
     BETTING_DURATION_MS, 
     COOLDOWN_AFTER_CLOSE_MS, 
     COOLDOWN_AFTER_RANDOM_MS 
-} = require(path.join(__dirname, 'config.js'));
+} = config;
 
+// --- ИЗМЕНЕНИЕ 2: Правильный импорт функций ботов ---
+// Функции в файлах ботов называются `placeBets` и `claimWinnings`.
 const { startNewRound, closeBets, getRandom } = require(path.join(__dirname, 'game-actions.js'));
-const { runBettingBots } = require(path.join(__dirname, 'bots-betting.js'));
-const { runClaimBots } = require(path.join(__dirname, 'bot-wins.js'));
-// --- КОНЕЦ ИЗМЕНЕНИЯ ---
+const { placeBets } = require(path.join(__dirname, 'bots-betting.js'));
+const { claimWinnings } = require(path.join(__dirname, 'bot-wins.js'));
 
-const connection = new Connection(RPC_URL);
+// --- ИЗМЕНЕНИЕ 3: Передаем правильный URL в Connection ---
+// Теперь переменная SYNDICA_RPC гарантированно содержит строку с URL.
+const connection = new Connection(SYNDICA_RPC, 'confirmed');
 
 // Схема для декодирования статуса
 const ROUND_STATUS_LAYOUT = borsh.struct([
@@ -43,6 +50,7 @@ async function getRoundStatus() {
 
 // Главный бесконечный цикл
 async function gameLoop() {
+    console.log("ЛОГ: Оркестратор запущен. Получение статуса...");
     while (true) {
         try {
             const status = await getRoundStatus();
@@ -58,7 +66,7 @@ async function gameLoop() {
 
                 case "AcceptingBets":
                     console.log("[Orchestrator] Идет прием ставок...");
-                    runBettingBots(); // Запускаем ботов в фоновом режиме
+                    placeBets(); // ИЗМЕНЕНО: Вызываем правильную функцию
                     console.log(`[Orchestrator] Ждем ${BETTING_DURATION_MS / 1000} секунд для завершения ставок...`);
                     await new Promise(resolve => setTimeout(resolve, BETTING_DURATION_MS));
                     
@@ -74,11 +82,8 @@ async function gameLoop() {
                     console.log("[Orchestrator] Запрашиваем случайное число...");
                     await getRandom();
                     
-                    // После получения рандома, статус почти сразу станет "Completed",
-                    // но мы можем запустить сбор выигрышей уже сейчас, не дожидаясь следующей итерации.
                     console.log("[Orchestrator] Запускаем ботов для сбора выигрышей...");
-                    await runClaimBots(); // Ждем завершения сбора
-
+                    await claimWinnings(); // ИЗМЕНЕНО: Вызываем правильную функцию
                     console.log(`[Orchestrator] Ждем ${COOLDOWN_AFTER_RANDOM_MS / 1000} секунд перед новым циклом...`);
                     await new Promise(resolve => setTimeout(resolve, COOLDOWN_AFTER_RANDOM_MS));
                     break;
