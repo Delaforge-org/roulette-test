@@ -10,7 +10,6 @@ const config = require(path.join(__dirname, 'config.js'));
 // Обратите внимание: мы используем SYNDICA_RPC, так как именно это имя используется в config.js
 const { 
     PROGRAM_ID, 
-    SYNDICA_RPC, 
     BETTING_DURATION_MS, 
     COOLDOWN_AFTER_CLOSE_MS, 
     COOLDOWN_AFTER_RANDOM_MS 
@@ -21,10 +20,11 @@ const {
 const { startNewRound, closeBets, getRandom } = require(path.join(__dirname, 'game-actions.js'));
 const { runBettingBots } = require(path.join(__dirname, 'bots-betting.js'));
 const { claimWinnings } = require(path.join(__dirname, 'bot-wins.js'));
+// --- НОВЫЙ ИМПОРТ ---
+const { getConnection, rotateRpc } = require(path.join(__dirname, 'utils', 'connection.js'));
 
-// --- ИЗМЕНЕНИЕ 3: Передаем правильный URL в Connection ---
-// Теперь переменная SYNDICA_RPC гарантированно содержит строку с URL.
-const connection = new Connection(SYNDICA_RPC, 'confirmed');
+// --- УДАЛЯЕМ СТАРОЕ СОЕДИНЕНИЕ ---
+// const connection = new Connection(SYNDICA_RPC, 'confirmed');
 
 // Схема для декодирования статуса
 const ROUND_STATUS_LAYOUT = borsh.struct([
@@ -38,6 +38,8 @@ const ROUND_STATUS_MAP = ["NotStarted", "AcceptingBets", "BetsClosed", "Complete
  * Получает и декодирует текущий статус раунда из блокчейна.
  */
 async function getRoundStatus() {
+    // --- ИСПОЛЬЗУЕМ НОВЫЙ МЕНЕДЖЕР ---
+    const connection = getConnection();
     const [gameSessionPda] = await PublicKey.findProgramAddress([Buffer.from('game_session')], PROGRAM_ID);
     const accountInfo = await connection.getAccountInfo(gameSessionPda);
     if (!accountInfo) {
@@ -66,8 +68,9 @@ async function gameLoop() {
 
                 case "AcceptingBets":
                     console.log("[Orchestrator] Идет прием ставок...");
-                    runBettingBots(); // ИЗМЕНЕНО: Вызываем правильную функцию
-                    console.log(`[Orchestrator] Ждем ${BETTING_DURATION_MS / 1000} секунд для завершения ставок...`);
+                    // Теперь мы ждем завершения ботов, чтобы поймать их ошибки
+                    await runBettingBots();
+                    console.log(`[Orchestrator] Боты завершили ставки. Ожидаем конца раунда ${BETTING_DURATION_MS / 1000} сек...`);
                     await new Promise(resolve => setTimeout(resolve, BETTING_DURATION_MS));
                     
                     console.log("[Orchestrator] Время вышло, закрываем ставки...");
@@ -83,14 +86,24 @@ async function gameLoop() {
                     await getRandom();
                     
                     console.log("[Orchestrator] Запускаем ботов для сбора выигрышей...");
-                    await claimWinnings(); // ИЗМЕНЕНО: Вызываем правильную функцию
+                    await claimWinnings();
                     console.log(`[Orchestrator] Ждем ${COOLDOWN_AFTER_RANDOM_MS / 1000} секунд перед новым циклом...`);
                     await new Promise(resolve => setTimeout(resolve, COOLDOWN_AFTER_RANDOM_MS));
                     break;
             }
+        // --- НОВАЯ ЛОГИКА ОБРАБОТКИ ОШИБОК ---
         } catch (error) {
-            console.error("[Orchestrator] КРИТИЧЕСКАЯ ОШИБКА в игровом цикле:", error);
-            await new Promise(resolve => setTimeout(resolve, 30000)); 
+            console.error("[Orchestrator] КРИТИЧЕСКАЯ ОШИБКА в игровом цикле:", error.message);
+            const errorMessage = (error.message || '').toLowerCase();
+            
+            if (errorMessage.includes('limit') || errorMessage.includes('429') || errorMessage.includes('failed to fetch') || errorMessage.includes('socket')) {
+                await rotateRpc();
+                console.log('[Orchestrator] RPC переключен. Пауза 30 секунд перед следующим циклом...');
+                await new Promise(resolve => setTimeout(resolve, 30000));
+            } else {
+                console.log('[Orchestrator] Неизвестная ошибка. Пауза 60 секунд перед следующим циклом...');
+                await new Promise(resolve => setTimeout(resolve, 60000)); 
+            }
         }
     }
 }

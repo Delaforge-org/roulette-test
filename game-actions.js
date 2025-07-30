@@ -1,29 +1,17 @@
-const { Connection, PublicKey, Keypair, Transaction, TransactionInstruction, sendAndConfirmTransaction, ComputeBudgetProgram } = require('@solana/web3.js');
+const { Connection, PublicKey, Keypair, Transaction, TransactionInstruction, ComputeBudgetProgram } = require('@solana/web3.js');
 const fs = require('fs');
 const path = require('path');
 const config = require(path.join(__dirname, 'config.js'));
+const { getConnection } = require(path.join(__dirname, 'utils', 'connection.js')); // ИЗМЕНЕНИЕ
 
-// --- Конфигурация ---
-const RPC_URL = config.SYNDICA_RPC;
 const IDL_PATH = path.join(__dirname, 'roulette_game.json');
 const WALLETS_BASE_DIR = path.join(__dirname, 'test-wallets');
-const CONCURRENCY_LIMIT = 40; // Увеличено для поддержки высокой скорости
 
-// --- Загрузка и настройка ---
 const idl = JSON.parse(fs.readFileSync(IDL_PATH, 'utf8'));
-const connection = new Connection(RPC_URL, { commitment: 'confirmed' });
+let ALL_BOT_WALLETS = [];
 
-let ALL_BOT_WALLETS = []; // Кэш для всех кошельков
-
-// --- Вспомогательные функции ---
-
-/**
- * Загружает все кошельки ботов в кэш, если он пуст.
- */
 function loadAllBotWallets() {
-    if (ALL_BOT_WALLETS.length > 0) {
-        return; // Уже загружены
-    }
+    if (ALL_BOT_WALLETS.length > 0) return;
     console.log("ЛОГ: [GameActions] Загрузка всех кошельков ботов в кэш...");
     const keypairs = [];
     const subdirs = fs.readdirSync(WALLETS_BASE_DIR);
@@ -44,12 +32,8 @@ function loadAllBotWallets() {
     console.log(`ЛОГ: [GameActions] Загружено ${ALL_BOT_WALLETS.length} кошельков.`);
 }
 
-/**
- * Выбирает случайный кошелек из загруженных.
- * @returns {Keypair}
- */
 function getRandomBotWallet() {
-    loadAllBotWallets(); // Убедиться, что кошельки загружены
+    loadAllBotWallets();
     if (ALL_BOT_WALLETS.length === 0) {
         throw new Error("Не найдено ни одного кошелька бота для выполнения действий.");
     }
@@ -63,56 +47,63 @@ function findInstructionDiscriminator(name) {
     return Buffer.from(instruction.discriminator);
 }
 
-// --- Экспортируемые функции действий ---
+async function sendTransactionWithHttp(transaction, signers) {
+    const connection = getConnection(); // ИЗМЕНЕНИЕ
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = signers[0].publicKey;
+
+    const signature = await connection.sendTransaction(transaction, signers, { skipPreflight: true });
+
+    await connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight
+    }, 'confirmed');
+    
+    return signature;
+}
 
 async function startNewRound() {
     const initiator = getRandomBotWallet();
     console.log(`[GameActions] Инициируем новый раунд от имени ${initiator.publicKey.toBase58()}...`);
-
     const [gameSessionPda] = await PublicKey.findProgramAddress([Buffer.from('game_session')], config.PROGRAM_ID);
-
     const startRoundIx = new TransactionInstruction({
         keys: [
             { pubkey: gameSessionPda, isWritable: true, isSigner: false },
             { pubkey: initiator.publicKey, isWritable: true, isSigner: true },
-            { pubkey: new PublicKey("11111111111111111111111111111111"), isWritable: false, isSigner: false }, // SystemProgram
+            { pubkey: new PublicKey("11111111111111111111111111111111"), isWritable: false, isSigner: false },
         ],
         programId: config.PROGRAM_ID,
         data: findInstructionDiscriminator('start_new_round'),
     });
-
     const transaction = new Transaction().add(startRoundIx);
-    const signature = await sendAndConfirmTransaction(connection, transaction, [initiator]);
+    const signature = await sendTransactionWithHttp(transaction, [initiator]);
     console.log(`[GameActions] Новый раунд успешно начат. Транзакция: ${signature}`);
 }
 
 async function closeBets() {
     const closer = getRandomBotWallet();
     console.log(`[GameActions] Закрываем ставки от имени ${closer.publicKey.toBase58()}...`);
-
     const [gameSessionPda] = await PublicKey.findProgramAddress([Buffer.from('game_session')], config.PROGRAM_ID);
-
     const closeBetsIx = new TransactionInstruction({
         keys: [
             { pubkey: gameSessionPda, isWritable: true, isSigner: false },
             { pubkey: closer.publicKey, isWritable: true, isSigner: true },
-            { pubkey: new PublicKey("11111111111111111111111111111111"), isWritable: false, isSigner: false }, // SystemProgram
+            { pubkey: new PublicKey("11111111111111111111111111111111"), isWritable: false, isSigner: false },
         ],
         programId: config.PROGRAM_ID,
         data: findInstructionDiscriminator('close_bets'),
     });
-
     const transaction = new Transaction().add(closeBetsIx);
-    const signature = await sendAndConfirmTransaction(connection, transaction, [closer]);
+    const signature = await sendTransactionWithHttp(transaction, [closer]);
     console.log(`[GameActions] Ставки успешно закрыты. Транзакция: ${signature}`);
 }
 
 async function getRandom() {
     const randomInitiator = getRandomBotWallet();
     console.log(`[GameActions] Запрашиваем случайное число от имени ${randomInitiator.publicKey.toBase58()}...`);
-
     const [gameSessionPda] = await PublicKey.findProgramAddress([Buffer.from('game_session')], config.PROGRAM_ID);
-
     const getRandomIx = new TransactionInstruction({
         keys: [
             { pubkey: gameSessionPda, isWritable: true, isSigner: false },
@@ -121,12 +112,10 @@ async function getRandom() {
         programId: config.PROGRAM_ID,
         data: findInstructionDiscriminator('get_random'),
     });
-
     const transaction = new Transaction()
         .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 200000 }))
         .add(getRandomIx);
-
-    const signature = await sendAndConfirmTransaction(connection, transaction, [randomInitiator]);
+    const signature = await sendTransactionWithHttp(transaction, [randomInitiator]);
     console.log(`[GameActions] Случайное число успешно запрошено. Транзакция: ${signature}`);
 }
 

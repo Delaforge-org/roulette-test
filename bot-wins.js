@@ -6,25 +6,19 @@ const borsh = require('@coral-xyz/borsh');
 const axios = require('axios');
 const https = require('https');
 const config = require(path.join(__dirname, 'config.js'));
+const { getConnection } = require(path.join(__dirname, 'utils', 'connection.js')); // ИЗМЕНЕНИЕ
 
-// --- Конфигурация ---
-const RPC_URL = config.SYNDICA_RPC;
 const IDL_PATH = path.join(__dirname, 'roulette_game.json');
 const WALLETS_BASE_DIR = path.join(__dirname, 'test-wallets');
 const API_BASE_URL = 'https://api.0xroulette.com/api';
 const CONCURRENCY_LIMIT = 20;
 const DELAY_BETWEEN_BATCHES_MS = 80;
 
-// --- Загрузка и настройка ---
 const idl = JSON.parse(fs.readFileSync(IDL_PATH, 'utf8'));
 const PROGRAM_ID = new PublicKey(idl.address);
-const connection = new Connection(RPC_URL, { commitment: 'confirmed' });
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
 console.log("ЛОГ: Конфигурация для выдачи выигрышей загружена.");
-console.log(`ЛОГ: RPC URL: ${RPC_URL}`);
-
-// --- Вспомогательные функции ---
 
 function loadAllBotWallets() {
     console.log("ЛОГ: Загрузка всех кошельков ботов...");
@@ -59,7 +53,6 @@ async function runInParallel(tasks, concurrencyLimit) {
     let completed = 0;
     const total = tasks.length;
     process.stdout.write(`\rПрогресс проверки: ${completed}/${total}`);
-
     for (const task of tasks) {
         const p = Promise.resolve().then(() => task()).then(result => {
             completed++;
@@ -67,7 +60,6 @@ async function runInParallel(tasks, concurrencyLimit) {
             return result;
         });
         allResults.push(p);
-
         if (concurrencyLimit <= total) {
             const e = p.finally(() => executing.splice(executing.indexOf(e), 1));
             executing.push(e);
@@ -81,42 +73,30 @@ async function runInParallel(tasks, concurrencyLimit) {
     return Promise.all(allResults);
 }
 
-
 async function claimWinForPlayer(botKeypair, roundToClaim, gameSessionPda) {
+    const connection = getConnection(); // ИЗМЕНЕНИЕ
     const playerPubkey = botKeypair.publicKey;
-    // console.log(`   -> Подготовка транзакции для ${playerPubkey.toBase58()}`); // Скрыто для уменьшения спама
-
     try {
         const apiUrl = `${API_BASE_URL}/player-round-bets?player=${playerPubkey.toBase58()}&round=${roundToClaim.toString()}`;
         const response = await axios.get(apiUrl, { httpsAgent });
-
         if (!response.data || !response.data.bets || response.data.bets.length === 0) return;
-        
         const totalPayoutAmount = response.data.bets.reduce((sum, bet) => sum + (Number(bet.payoutAmount) || 0), 0);
         const alreadyClaimed = response.data.alreadyClaimed === true;
-
         if (totalPayoutAmount > 0 && !alreadyClaimed) {
             console.log(`  -> ПОБЕДИТЕЛЬ: ${playerPubkey.toBase58()}. Сумма: ${totalPayoutAmount}. Отправка транзакции...`);
-            
             const tokenMint = new PublicKey(response.data.bets[0].tokenMint);
             const [vaultPda] = await PublicKey.findProgramAddress([Buffer.from('vault'), tokenMint.toBuffer()], PROGRAM_ID);
             const [playerBetsPda] = await PublicKey.findProgramAddress([Buffer.from('player_bets'), gameSessionPda.toBuffer(), playerPubkey.toBuffer()], PROGRAM_ID);
             const playerAta = await getAssociatedTokenAddress(tokenMint, playerPubkey);
-
             const vaultAccountInfo = await connection.getAccountInfo(vaultPda);
-            if (!vaultAccountInfo) {
-                throw new Error(`Не удалось найти аккаунт хранилища (Vault) по адресу: ${vaultPda.toBase58()}`);
-            }
+            if (!vaultAccountInfo) throw new Error(`Не удалось найти аккаунт хранилища (Vault) по адресу: ${vaultPda.toBase58()}`);
             const vaultAta = new PublicKey(vaultAccountInfo.data.slice(40, 72));
-
             const [claimRecordPda] = await PublicKey.findProgramAddress([Buffer.from('claim_record'), playerPubkey.toBuffer(), roundToClaim.toBuffer('le', 8)], PROGRAM_ID);
-            
             const claimRecordInfo = await connection.getAccountInfo(claimRecordPda);
-            if(claimRecordInfo) {
-               console.warn(`   -> ПРЕДУПРЕЖДЕНИЕ: Запись о выигрыше для ${playerPubkey.toBase58()} уже существует в блокчейне. Пропускаем.`);
-               return;
+            if (claimRecordInfo) {
+                console.warn(`   -> ПРЕДУПРЕЖДЕНИЕ: Запись о выигрыше для ${playerPubkey.toBase58()} уже существует. Пропускаем.`);
+                return;
             }
-
             const claimIx = new TransactionInstruction({
                 keys: [
                     { pubkey: playerPubkey, isSigner: true, isWritable: true },
@@ -128,7 +108,7 @@ async function claimWinForPlayer(botKeypair, roundToClaim, gameSessionPda) {
                     { pubkey: claimRecordPda, isSigner: false, isWritable: true },
                     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
                     { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-                    { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, 
+                    { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
                 ],
                 programId: PROGRAM_ID,
                 data: Buffer.concat([
@@ -136,36 +116,26 @@ async function claimWinForPlayer(botKeypair, roundToClaim, gameSessionPda) {
                     roundToClaim.toBuffer('le', 8),
                 ]),
             });
-
-            const transaction = new Transaction()
-                .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }))
-                .add(claimIx);
-            
+            const transaction = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 })).add(claimIx);
             const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
             transaction.recentBlockhash = blockhash;
             transaction.feePayer = playerPubkey;
-
-            const signature = await connection.sendTransaction(transaction, [botKeypair]);
-
+            const signature = await connection.sendTransaction(transaction, [botKeypair], { skipPreflight: true });
             await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
-
-            console.log(`   -> УСПЕХ: Выигрыш для ${playerPubkey.toBase58()} получен! Транзакция: ${signature}`);
+            console.log(`   -> УСПЕХ: Выигрыш для ${playerPubkey.toBase58()} получен! TX: ${signature}`);
             return { status: 'success' };
         }
     } catch (error) {
-        if (error.response && error.response.status !== 404) {
-            // Игнорируем, у бота не было ставок
-        } else {
+        if (!error.response || error.response.status !== 404) {
             console.error(`\n   -> ОШИБКА для ${playerPubkey.toBase58()}: ${error.message}`);
         }
         return { status: 'failed' };
     }
 }
 
-// --- ИЗМЕНЕНИЕ 1: Переименовываем 'main' в 'claimWinnings', чтобы соответствовать оркестратору ---
 async function claimWinnings() {
+    const connection = getConnection(); // ИЗМЕНЕНИЕ
     console.log("\n>>> [Bots] Запуск скрипта для выплаты выигрышей...");
-
     try {
         console.log("ЛОГ: Получение состояния игровой сессии...");
         const [gameSessionPda] = await PublicKey.findProgramAddress([Buffer.from('game_session')], PROGRAM_ID);
@@ -174,39 +144,27 @@ async function claimWinnings() {
             console.error("КРИТИЧЕСКАЯ ОШИБКА: Аккаунт GameSession не найден.");
             return;
         }
-
         const gameSessionLayout = borsh.struct([
-            borsh.u64('current_round'),
-            borsh.i64('round_start_time'),
-            borsh.u8('round_status'),
-            borsh.option(borsh.u8(), 'winning_number'),
-            borsh.i64('bets_closed_timestamp'),
-            borsh.i64('get_random_timestamp'),
-            borsh.u8('bump'),
-            borsh.option(borsh.publicKey(), 'last_bettor'),
+            borsh.u64('current_round'), borsh.i64('round_start_time'), borsh.u8('round_status'),
+            borsh.option(borsh.u8(), 'winning_number'), borsh.i64('bets_closed_timestamp'),
+            borsh.i64('get_random_timestamp'), borsh.u8('bump'), borsh.option(borsh.publicKey(), 'last_bettor'),
             borsh.u64('last_completed_round'),
         ]);
         const gameSession = gameSessionLayout.decode(gameSessionAccountInfo.data.slice(8));
-
         if (gameSession.winning_number === null || gameSession.last_completed_round.isZero()) {
             console.log("ИНФО: В последнем раунде еще не определено выигрышное число. Выход.");
             return;
         }
-
         const roundToClaim = gameSession.last_completed_round;
         console.log(`ЛОГ: Раунд для проверки выигрышей: ${roundToClaim.toString()}. Выигрышное число: ${gameSession.winning_number}`);
-
         const botWallets = loadAllBotWallets();
-        
         console.log("\n>>> Этап 1: Параллельная проверка выигрышей через API...");
         const checkTasks = botWallets.map(wallet => () => {
             return axios.get(`${API_BASE_URL}/player-round-bets?player=${wallet.publicKey.toBase58()}&round=${roundToClaim.toString()}`, { httpsAgent })
                 .then(response => {
                     if (response.data && response.data.bets && response.data.bets.length > 0) {
                         const totalPayout = response.data.bets.reduce((sum, bet) => sum + (Number(bet.payoutAmount) || 0), 0);
-                        if (totalPayout > 0 && !response.data.alreadyClaimed) {
-                            return wallet; // Возвращаем keypair, если есть что забирать
-                        }
+                        if (totalPayout > 0 && !response.data.alreadyClaimed) return wallet;
                     }
                     return null;
                 })
@@ -217,36 +175,25 @@ async function claimWinnings() {
                     return null;
                 });
         });
-
         const results = await runInParallel(checkTasks, CONCURRENCY_LIMIT);
         const winnersToClaim = results.filter(Boolean);
-
         if (winnersToClaim.length > 0) {
             console.log(`\n>>> Этап 2: Найдено ${winnersToClaim.length} победителей. Начинаем последовательную выплату...`);
             let successCount = 0;
             for (const [index, botKeypair] of winnersToClaim.entries()) {
                 console.log(`\n--- Выплата ${index + 1}/${winnersToClaim.length} ---`);
-                try {
-                    const result = await claimWinForPlayer(botKeypair, roundToClaim, gameSessionPda);
-                    if(result?.status === 'success') successCount++;
-                } catch (err) {
-                    console.error(`\n!!! КРИТИЧЕСКАЯ ОШИБКА во время выплаты. !!!`);
-                    console.error(err);
-                }
+                const result = await claimWinForPlayer(botKeypair, roundToClaim, gameSessionPda);
+                if (result?.status === 'success') successCount++;
             }
             console.log(`\nВыплаты завершены. Успешно: ${successCount} из ${winnersToClaim.length}.`);
         } else {
             console.log("\nИНФО: Победители среди ботов в этом раунде не найдены.");
         }
-
         console.log("\n>>> Скрипт завершил работу.");
     } catch (e) {
         console.error("КРИТИЧЕСКАЯ ОШИБКА в скрипте claimWinnings:", e);
+        throw e; // Пробрасываем ошибку наверх
     }
 }
 
-// --- ИЗМЕНЕНИЕ 2: Удаляем старый самозапуск скрипта ---
-// main().catch(err => { ... });
-
-// --- ИЗМЕНЕНИЕ 3: Убеждаемся, что экспортируется правильная функция ---
 module.exports = { claimWinnings };

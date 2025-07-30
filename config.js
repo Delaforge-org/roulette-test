@@ -10,7 +10,7 @@ module.exports = {
     SYNDICA_RPC,
     MONGO_URI,  
     PROGRAM_ID: new PublicKey("G4DQmdyZL7haBvZbjDKJ4w1wKZ1oQVR9CSu5yBW8EZJA"),
-    BETTING_DURATION_MS: 4* 60 * 1000,        // 1 минута на ставки
+    BETTING_DURATION_MS: 6* 60 * 1000,        // 1 минута на ставки
     COOLDOWN_AFTER_CLOSE_MS: 15 * 1000,    // 15 секунд пауза после закрытия ставок
     COOLDOWN_AFTER_RANDOM_MS: 30 * 1000,   // 30 секунд пауза после получения выигрышного числа
 };

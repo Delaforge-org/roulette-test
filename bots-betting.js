@@ -382,6 +382,8 @@ async function runBettingBots() { // Переименовываем main в runB
                 } else {
                     console.error("ДЕТАЛИ ОШИБКИ:", error);
                 }
+                // Пробрасываем ошибку дальше, чтобы оркестратор ее поймал
+                throw error;
             }
         };
     });
