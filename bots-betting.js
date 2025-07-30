@@ -10,7 +10,7 @@ const RPC_URL = config.SYNDICA_RPC;
 const IDL_PATH = path.join(__dirname, 'roulette_game.json');
 const WALLETS_BASE_DIR = path.join(__dirname, 'test-wallets');
 const CONCURRENCY_LIMIT = 40; // Увеличено для поддержки высокой скорости
-const DELAY_BETWEEN_BATCHES_MS = 20; // Уменьшено для увеличения нагрузки до ~80 req/s
+const DELAY_BETWEEN_BATCHES_MS = 80; // Уменьшено для увеличения нагрузки до ~80 req/s
 
 // ==============================================================================
 //      КОНФИГУРАЦИЯ БОТОВ: ГРУППЫ, ТОКЕНЫ, ДЕЦИМАЛЫ

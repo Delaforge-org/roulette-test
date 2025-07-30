@@ -13,7 +13,7 @@ const IDL_PATH = path.join(__dirname, 'roulette_game.json');
 const WALLETS_BASE_DIR = path.join(__dirname, 'test-wallets');
 const API_BASE_URL = 'https://api.0xroulette.com/api';
 const CONCURRENCY_LIMIT = 20;
-const DELAY_BETWEEN_BATCHES_MS = 60;
+const DELAY_BETWEEN_BATCHES_MS = 80;
 
 // --- Загрузка и настройка ---
 const idl = JSON.parse(fs.readFileSync(IDL_PATH, 'utf8'));
