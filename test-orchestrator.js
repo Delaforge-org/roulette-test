@@ -19,7 +19,7 @@ const {
 // --- ИЗМЕНЕНИЕ 2: Правильный импорт функций ботов ---
 // Функции в файлах ботов называются `placeBets` и `claimWinnings`.
 const { startNewRound, closeBets, getRandom } = require(path.join(__dirname, 'game-actions.js'));
-const { placeBets } = require(path.join(__dirname, 'bots-betting.js'));
+const { runBettingBots } = require(path.join(__dirname, 'bots-betting.js'));
 const { claimWinnings } = require(path.join(__dirname, 'bot-wins.js'));
 
 // --- ИЗМЕНЕНИЕ 3: Передаем правильный URL в Connection ---
@@ -66,7 +66,7 @@ async function gameLoop() {
 
                 case "AcceptingBets":
                     console.log("[Orchestrator] Идет прием ставок...");
-                    placeBets(); // ИЗМЕНЕНО: Вызываем правильную функцию
+                    runBettingBots(); // ИЗМЕНЕНО: Вызываем правильную функцию
                     console.log(`[Orchestrator] Ждем ${BETTING_DURATION_MS / 1000} секунд для завершения ставок...`);
                     await new Promise(resolve => setTimeout(resolve, BETTING_DURATION_MS));
                     
