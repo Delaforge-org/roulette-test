@@ -1,5 +1,5 @@
 {
-  "address": "G4DQmdyZL7haBvZbjDKJ4w1wKZ1oQVR9CSu5yBW8EZJA",
+  "address": "ufYwxC4cqYQL99EENYvf8qgfJqm2Udz6CSxym6fCabh",
   "metadata": {
     "name": "roulette_game",
     "version": "0.1.3",
@@ -388,14 +388,6 @@
       ],
       "accounts": [
         {
-          "name": "authority",
-          "docs": [
-            "The authority account (signer) authorized to initialize vaults. Pays for account creation."
-          ],
-          "writable": true,
-          "signer": true
-        },
-        {
           "name": "token_mint",
           "docs": [
             "The mint account of the SPL token for the new vault."
@@ -476,10 +468,10 @@
         {
           "name": "liquidity_provider",
           "docs": [
-            "that this public key matches the one used to derive the provider_state PDA.",
-            "The `authority` signer will sign for any token operations."
+            "The initial liquidity provider (signer). Pays for account creation."
           ],
-          "writable": true
+          "writable": true,
+          "signer": true
         },
         {
           "name": "treasury_account",
@@ -1441,131 +1433,136 @@
     },
     {
       "code": 6008,
+      "name": "BetAmountExceedsLimit",
+      "msg": "The bet amount exceeds the maximum limit allowed."
+    },
+    {
+      "code": 6009,
       "name": "RoundInProgress",
       "msg": "Cannot start a new round while one is already in progress."
     },
     {
-      "code": 6009,
+      "code": 6010,
       "name": "BetsNotAccepted",
       "msg": "Bets cannot be placed as the round is not in the 'AcceptingBets' status."
     },
     {
-      "code": 6010,
+      "code": 6011,
       "name": "InvalidRoundStatus",
       "msg": "The current round status does not allow this operation."
     },
     {
-      "code": 6011,
+      "code": 6012,
       "name": "TooEarlyToClose",
       "msg": "Too early to close bets; the minimum round duration has not elapsed."
     },
     {
-      "code": 6012,
+      "code": 6013,
       "name": "TooEarlyForPayouts",
       "msg": "Too early for payouts; necessary processing or delay period not complete."
     },
     {
-      "code": 6013,
+      "code": 6014,
       "name": "NoBetsInRound",
       "msg": "Player has no bets recorded for this round."
     },
     {
-      "code": 6014,
+      "code": 6015,
       "name": "GameSessionNotFound",
       "msg": "The global GameSession account was not found or is not initialized."
     },
     {
-      "code": 6015,
+      "code": 6016,
       "name": "InvalidRewardToken",
       "msg": "The provided reward token mint or account does not match the configured reward mint."
     },
     {
-      "code": 6016,
+      "code": 6017,
       "name": "VaultMismatch",
       "msg": "The vault specified does not match the vault associated with the PlayerBets account or expected PDA."
     },
     {
-      "code": 6017,
+      "code": 6018,
       "name": "RandomBeforeClosing",
       "msg": "Cannot generate the random number before the betting phase is closed."
     },
     {
-      "code": 6018,
+      "code": 6019,
       "name": "RandomAlreadyGenerated",
       "msg": "The random number for this round has already been generated."
     },
     {
-      "code": 6019,
+      "code": 6020,
       "name": "InvalidPlayerBetsAccount",
       "msg": "The provided PlayerBets account is invalid or does not match expectations."
     },
     {
-      "code": 6020,
+      "code": 6021,
       "name": "AlreadyInitialized",
       "msg": "Game session account is already initialized."
     },
     {
-      "code": 6021,
+      "code": 6022,
       "name": "NoBetsPlacedInRound",
       "msg": "Cannot generate random number because no bets were placed in this round."
     },
     {
-      "code": 6022,
+      "code": 6023,
       "name": "CannotCloseBetsWithoutBets",
       "msg": "Cannot close bets if no bets were placed in the round."
     },
     {
-      "code": 6023,
+      "code": 6024,
       "name": "InvalidTokenAccountOwner",
       "msg": "The vault's token account is not owned by the vault PDA."
     },
     {
-      "code": 6024,
+      "code": 6025,
       "name": "VaultPDAMismatch",
       "msg": "Derived vault PDA does not match the provided account."
     },
     {
-      "code": 6025,
+      "code": 6026,
       "name": "InvalidTokenAccount",
       "msg": "Invalid SPL token account provided (e.g., wrong mint, owner, or not initialized)."
     },
     {
-      "code": 6026,
+      "code": 6027,
       "name": "ClaimRoundMismatchOrNotCompleted",
       "msg": "Attempting to claim winnings for a round where the winning number is not available."
     },
     {
-      "code": 6027,
+      "code": 6028,
       "name": "NoWinningsFound",
       "msg": "No winnings found for the player in the specified round (claim attempted)."
     },
     {
-      "code": 6028,
+      "code": 6029,
       "name": "TooEarlyToGetRandom",
       "msg": "Too early to get random number; minimum duration after closing bets has not passed."
     },
     {
-      "code": 6029,
+      "code": 6030,
       "name": "TooEarlyToStartNewRound",
       "msg": "Too early to start a new round; minimum duration after getting random number has not passed."
     },
     {
-      "code": 6030,
+      "code": 6031,
       "name": "InvalidTreasuryAccountOwner",
       "msg": "Owner of the provided treasury token account is invalid."
     },
     {
-      "code": 6031,
+      "code": 6032,
       "name": "TreasuryAccountMintMismatch",
       "msg": "Mint of the provided treasury token account does not match the vault's token mint."
     },
     {
-      "code": 6032,
+      "code": 6033,
       "name": "BetsRoundMismatch",
       "msg": "Player bets are from a different round than the one being claimed."
     },
     {
-      "code": 6033,
+      "code": 6034,
       "name": "ProviderLimitReached",
       "msg": "Maximum number of liquidity providers for this vault has been reached."
     }
