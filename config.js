@@ -5,9 +5,15 @@ const MONGO_URI = 'mongodb+srv://roulette-db-user:Ritzy7-Undercook1-Choosy1-Safe
 const { PublicKey } = require('@solana/web3.js');
 
 
+const QUICKNODE_WSS = "wss://..."; // Заполните, если нужно
+
+const SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/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";
+
 module.exports = {
     QUICKNODE_RPC,
+    QUICKNODE_WSS,
     SYNDICA_RPC,
+    SLACK_WEBHOOK_URL,
     MONGO_URI,  
     PROGRAM_ID: new PublicKey("G4DQmdyZL7haBvZbjDKJ4w1wKZ1oQVR9CSu5yBW8EZJA"),
     BETTING_DURATION_MS: 5* 60 * 1000,        // 1 минута на ставки

@@ -15,6 +15,7 @@ const { startNewRound, closeBets, getRandom } = require(path.join(__dirname, 'ga
 const { runBettingBots } = require(path.join(__dirname, 'bots-betting.js'));
 const { claimWinnings } = require(path.join(__dirname, 'bot-wins.js'));
 const { getConnection, rotateRpc } = require(path.join(__dirname, 'utils', 'connection.js'));
+const { sendSlackNotification } = require(path.join(__dirname, 'utils', 'slack-notifier.js'));
 
 const ROUND_STATUS_LAYOUT = borsh.struct([
     borsh.u64('current_round'),
@@ -91,9 +92,14 @@ async function gameLoop() {
                     break;
             }
         } catch (error) {
-            console.error("[Orchestrator] КРИТИЧЕСКАЯ ОШИБКА:", error.message);
-            const errorMessage = (error.message || '').toLowerCase();
-            if (errorMessage.includes('limit') || errorMessage.includes('429') || errorMessage.includes('failed to fetch') || errorMessage.includes('socket')) {
+            const errorMessage = error.message || 'Неизвестная ошибка';
+            console.error("[Orchestrator] КРИТИЧЕСКАЯ ОШИБКА в игровом цикле:", errorMessage);
+            
+            // --- ДОБАВЛЯЕМ ВЫЗОВ УВЕДОМЛЕНИЯ ---
+            await sendSlackNotification(errorMessage);
+
+            const lowerCaseError = errorMessage.toLowerCase();
+            if (lowerCaseError.includes('limit') || lowerCaseError.includes('429') || lowerCaseError.includes('failed to fetch') || lowerCaseError.includes('socket')) {
                 await rotateRpc();
                 console.log('[Orchestrator] RPC переключен. Пауза 10 секунд...');
                 await new Promise(resolve => setTimeout(resolve, 10000));
