@@ -117,12 +117,14 @@ async function claimWinForPlayer(botKeypair, roundToClaim, gameSessionPda) {
                 ]),
             });
             const transaction = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 })).add(claimIx);
-            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+            const { blockhash } = await connection.getLatestBlockhash('confirmed');
             transaction.recentBlockhash = blockhash;
             transaction.feePayer = playerPubkey;
-            const signature = await connection.sendTransaction(transaction, [botKeypair], { skipPreflight: true });
-            await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
-            console.log(`   -> УСПЕХ: Выигрыш для ${playerPubkey.toBase58()} получен! TX: ${signature}`);
+
+            // Отправляем и не ждем подтверждения
+            await connection.sendTransaction(transaction, [botKeypair], { skipPreflight: true });
+
+            console.log(`   -> УСПЕХ: Транзакция на получение выигрыша для ${playerPubkey.toBase58()} отправлена.`);
             return { status: 'success' };
         }
     } catch (error) {

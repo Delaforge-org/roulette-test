@@ -348,28 +348,15 @@ async function runBettingBots() { // Переименовываем main в runB
                   .add(ComputeBudgetProgram.setComputeUnitLimit({ units: 400000 }))
                   .add(placeBetIx);
 
-                // --- ИЗМЕНЕННАЯ ЛОГИКА ОТПРАВКИ И ПОДТВЕРЖДЕНИЯ ---
-
-                // 1. Получаем свежий blockhash. Это заставит confirmTransaction использовать HTTP polling вместо WS.
-                const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('processed');
+                // 1. Получаем свежий blockhash.
+                const { blockhash } = await connection.getLatestBlockhash('processed');
                 transaction.recentBlockhash = blockhash;
                 transaction.feePayer = playerPubkey;
 
-                // 2. Отправляем транзакцию, не дожидаясь подтверждения через WebSocket.
-                const signature = await connection.sendTransaction(transaction, [playerKeypair], {
+                // 2. Отправляем транзакцию и НЕ ждем подтверждения.
+                await connection.sendTransaction(transaction, [playerKeypair], {
                     skipPreflight: true,
                 });
-
-                // 3. Подтверждаем транзакцию, используя HTTP-polling.
-                const confirmation = await connection.confirmTransaction({
-                    signature,
-                    blockhash,
-                    lastValidBlockHeight
-                }, 'processed');
-                
-                if (confirmation.value.err) {
-                    throw new Error(`Transaction failed confirmation: ${JSON.stringify(confirmation.value.err)}`);
-                }
 
                 // Успешный лог скрыт, чтобы не засорять консоль. Можно раскомментировать для отладки.
                 // console.log(`УСПЕХ: Ставка от ${playerPubkey.toBase58().substring(0, 5)} [${group}] на ${amountForLog} | TX: ${signature.substring(0, 15)}...`);
