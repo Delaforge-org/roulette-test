@@ -62,7 +62,12 @@ async function gameLoop() {
                 case "AcceptingBets":
                     if (!hasPlacedBetsThisRound) {
                         console.log("[Orchestrator] Идет прием ставок, запускаем ботов...");
-                        runBettingBots(); // Запускаем, но не ждем завершения
+                        // Запускаем, но не ждем завершения, НО ловим возможные ошибки
+                        runBettingBots().catch(err => {
+                            const errorMessage = err.message || 'Неизвестная ошибка';
+                            console.error('[Orchestrator] КРИТИЧЕСКАЯ ОШИБКА в фоновом процессе размещения ставок:', errorMessage);
+                            sendSlackNotification(`Критическая ошибка в bots-betting.js: ${errorMessage}`);
+                        });
                         hasPlacedBetsThisRound = true;
                     }
                     
@@ -85,9 +90,37 @@ async function gameLoop() {
                     await new Promise(resolve => setTimeout(resolve, COOLDOWN_AFTER_CLOSE_MS));
                     console.log("[Orchestrator] Запрашиваем случайное число...");
                     await getRandom();
-                    console.log("[Orchestrator] Запускаем ботов для сбора выигрышей...");
-                    await claimWinnings();
-                    console.log(`[Orchestrator] Ждем ${COOLDOWN_AFTER_RANDOM_MS / 1000} секунд...`);
+                    
+                    // --- НОВЫЙ НАДЕЖНЫЙ БЛОК СБОРА ВЫИГРЫШЕЙ ---
+                    console.log("[Orchestrator] Переход в режим сбора выигрышей...");
+                    let claimsSuccessful = false;
+                    while (!claimsSuccessful) {
+                        try {
+                            await claimWinnings();
+                            claimsSuccessful = true; // Если ошибок не было, выходим из цикла
+                            console.log("[Orchestrator] Сбор выигрышей успешно завершен.");
+                        } catch (claimError) {
+                            const errorMessage = claimError.message || 'Неизвестная ошибка';
+                            console.error("[Orchestrator] ОШИБКА при сборе выигрышей:", errorMessage);
+                            
+                            // Отправляем уведомление в Slack о проблеме со сбором
+                            await sendSlackNotification(`Ошибка при сборе выигрышей: ${errorMessage}`);
+                            
+                            // Логика повторных попыток с разными задержками
+                            const lowerCaseError = errorMessage.toLowerCase();
+                             if (lowerCaseError.includes('limit') || lowerCaseError.includes('429') || lowerCaseError.includes('failed to fetch') || lowerCaseError.includes('socket')) {
+                                await rotateRpc();
+                                console.log('[Orchestrator] RPC переключен. Пауза 30 секунд перед повторной попыткой сбора...');
+                                await new Promise(resolve => setTimeout(resolve, 30000));
+                            } else {
+                                console.log('[Orchestrator] Неизвестная ошибка сбора. Пауза 60 секунд перед повторной попыткой...');
+                                await new Promise(resolve => setTimeout(resolve, 60000)); 
+                            }
+                        }
+                    }
+                    // --- КОНЕЦ НОВОГО БЛОКА ---
+
+                    console.log(`[Orchestrator] Ждем ${COOLDOWN_AFTER_RANDOM_MS / 1000} секунд перед новым раундом...`);
                     await new Promise(resolve => setTimeout(resolve, COOLDOWN_AFTER_RANDOM_MS));
                     break;
             }

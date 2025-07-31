@@ -354,15 +354,15 @@ async function runBettingBots() { // Переименовываем main в runB
                 // console.log(`УСПЕХ: Ставка от ${playerPubkey.toBase58().substring(0, 5)} [${group}] на ${amountForLog} | TX: ${signature.substring(0, 15)}...`);
 
             } catch (error) {
-                console.error(`\n!!! КРИТИЧЕСКАЯ ОШИБКА при ставке от ${playerPubkey.toBase58()} [${group}] !!!`);
+                console.error(`\n!!! ОШИБКА RPC при ставке от ${playerPubkey.toBase58()} [${group}] !!!`);
                 console.error(`Сумма: ${amountForLog}, Тип ставки: ${betType}`);
                 if (error.logs) {
                     console.error("ЛОГИ ПРОГРАММЫ:", error.logs);
                 } else {
                     console.error("ДЕТАЛИ ОШИБКИ:", error);
                 }
-                // Пробрасываем ошибку дальше, чтобы оркестратор ее поймал
-                throw error;
+                // Ошибку не пробрасываем, чтобы не останавливать весь процесс размещения ставок
+                // throw error;
             }
         };
     });
