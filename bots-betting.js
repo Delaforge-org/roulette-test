@@ -230,19 +230,12 @@ function shuffleArray(array) {
 async function runInParallel(tasks, concurrencyLimit) {
     const results = [];
     const executing = [];
-    let completed = 0;
-    const total = tasks.length;
-
-    console.log(`\n>>> Запуск ${total} ставок с параллелизмом ${concurrencyLimit} и задержкой ${DELAY_BETWEEN_BATCHES_MS} мс...\n`);
 
     for (const task of tasks) {
-        const p = Promise.resolve().then(() => task()).finally(() => {
-            completed++;
-            process.stdout.write(`\rПрогресс: ${completed}/${total} ставок обработано...`);
-        });
+        const p = Promise.resolve().then(() => task());
         results.push(p);
 
-        if (concurrencyLimit <= total) {
+        if (concurrencyLimit <= tasks.length) {
             const e = p.finally(() => executing.splice(executing.indexOf(e), 1));
             executing.push(e);
             if (executing.length >= concurrencyLimit) {
@@ -253,7 +246,6 @@ async function runInParallel(tasks, concurrencyLimit) {
     }
 
     await Promise.all(results);
-    process.stdout.write('\n'); // Новая строка после завершения прогресса
 }
 
 

@@ -50,17 +50,10 @@ function findInstructionDiscriminator(name) {
 async function runInParallel(tasks, concurrencyLimit) {
     const allResults = [];
     const executing = [];
-    let completed = 0;
-    const total = tasks.length;
-    process.stdout.write(`\rПрогресс проверки: ${completed}/${total}`);
     for (const task of tasks) {
-        const p = Promise.resolve().then(() => task()).then(result => {
-            completed++;
-            process.stdout.write(`\rПрогресс проверки: ${completed}/${total}`);
-            return result;
-        });
+        const p = Promise.resolve().then(() => task());
         allResults.push(p);
-        if (concurrencyLimit <= total) {
+        if (concurrencyLimit <= tasks.length) {
             const e = p.finally(() => executing.splice(executing.indexOf(e), 1));
             executing.push(e);
             if (executing.length >= concurrencyLimit) {
@@ -69,7 +62,6 @@ async function runInParallel(tasks, concurrencyLimit) {
         }
         await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES_MS));
     }
-    process.stdout.write('\n');
     return Promise.all(allResults);
 }
 
