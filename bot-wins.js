@@ -175,10 +175,17 @@ async function claimWinnings() {
             console.log(`\n>>> Этап 2: Найдено ${winnersToClaim.length} победителей. Начинаем последовательную выплату...`);
             let successCount = 0;
             for (const [index, botKeypair] of winnersToClaim.entries()) {
-                console.log(`\n--- Выплата ${index + 1}/${winnersToClaim.length} ---`);
-                const result = await claimWinForPlayer(botKeypair, roundToClaim, gameSessionPda);
-                if (result?.status === 'success') successCount++;
+                try {
+                    const result = await claimWinForPlayer(botKeypair, roundToClaim, gameSessionPda);
+                    if (result?.status === 'success') {
+                        successCount++;
+                        process.stdout.write(`\rУспешных выплат: ${successCount}/${winnersToClaim.length}...`);
+                    }
+                } catch (err) {
+                    console.error(`\nОшибка при выплате для ${botKeypair.publicKey.toBase58()}: ${err.message}`);
+                }
             }
+            process.stdout.write('\n');
             console.log(`\nВыплаты завершены. Успешно: ${successCount} из ${winnersToClaim.length}.`);
         } else {
             console.log("\nИНФО: Победители среди ботов в этом раунде не найдены.");
