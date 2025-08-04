@@ -35,6 +35,7 @@ const TOKEN_CONFIG = {
             () => getRandomAmount(900, 1200),
             () => getRandomAmount(1200, 1500),
             () => getRandomAmount(1500, 1800),
+            () => getRandomAmount(1200, 1450),
         ]
     },
     SAO: {
@@ -45,6 +46,7 @@ const TOKEN_CONFIG = {
             () => getRandomAmount(450, 600),
             () => getRandomAmount(600, 750),
             () => getRandomAmount(750, 900),
+            () => getRandomAmount(150, 1600),
         ]
     },
     LOI: {
