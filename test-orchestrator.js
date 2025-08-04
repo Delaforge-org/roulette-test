@@ -20,7 +20,7 @@ const { claimWinnings } = require(path.join(__dirname, 'bot-wins.js'));
 const { getConnection, rotateRpc } = require(path.join(__dirname, 'utils', 'connection.js'));
 const { sendSlackNotification } = require(path.join(__dirname, 'utils', 'slack-notifier.js'));
 
-const BACKEND_API_URL = 'https://api.roulette/api'; // URL вашего бэкенда
+const BACKEND_API_URL = 'https://api.0xroulette.com/api'; // URL вашего бэкенда
 
 // --- ИЗМЕНЕНО: Возвращаемся к u8 и карте состояний ---
 const ROUND_STATUS_LAYOUT = borsh.struct([
