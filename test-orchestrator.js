@@ -22,17 +22,12 @@ const { sendSlackNotification } = require(path.join(__dirname, 'utils', 'slack-n
 
 const BACKEND_API_URL = 'http://localhost:3000/api'; // URL вашего бэкенда
 
-// --- ИЗМЕНЕНО: Исправлена схема для borsh.rustEnum и убран ROUND_STATUS_MAP ---
+// --- ИЗМЕНЕНО: Возвращаемся к u8 и карте состояний ---
 const ROUND_STATUS_LAYOUT = borsh.struct([
     borsh.publicKey('authority'),
     borsh.u64('current_round'),
     borsh.i64('round_start_time'),
-    borsh.rustEnum([
-        borsh.struct([], 'NotStarted'),
-        borsh.struct([], 'AcceptingBets'),
-        borsh.struct([], 'BetsClosed'),
-        borsh.struct([], 'Completed'),
-    ], 'round_status'),
+    borsh.u8('round_status'), // Читаем статус как простое число
     borsh.option(borsh.u8(), 'winning_number'),
     borsh.i64('bets_closed_timestamp'),
     borsh.i64('get_random_timestamp'),
@@ -40,8 +35,9 @@ const ROUND_STATUS_LAYOUT = borsh.struct([
     borsh.option(borsh.publicKey(), 'last_bettor'),
     borsh.u64('last_completed_round'),
 ]);
+const ROUND_STATUS_MAP = ["NotStarted", "AcceptingBets", "BetsClosed", "Completed"];
 
-// --- ИЗМЕНЕНО: Функция теперь использует enum напрямую ---
+// --- ИЗМЕНЕНО: Функция теперь использует карту для определения статуса ---
 async function getRoundStatus() {
     const connection = getConnection();
     const [gameSessionPda] = await PublicKey.findProgramAddress([Buffer.from('game_session')], PROGRAM_ID);
@@ -51,7 +47,7 @@ async function getRoundStatus() {
     }
     const decoded = ROUND_STATUS_LAYOUT.decode(accountInfo.data.slice(8));
     return {
-        status: decoded.round_status.enum,
+        status: ROUND_STATUS_MAP[decoded.round_status],
     };
 }
 
