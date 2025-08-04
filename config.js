@@ -11,7 +11,6 @@ const SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/T08GYQSD695/B097X0VJ
 
 module.exports = {
     QUICKNODE_RPC,
-    QUICKNODE_WSS,
     SYNDICA_RPC,
     SLACK_WEBHOOK_URL,
     MONGO_URI,       // 1 минута на ставки  // 15 секунд пауза после закрытия ставок  // 30 секунд пауза после получения выигрышного числа
