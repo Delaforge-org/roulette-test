@@ -9,8 +9,8 @@ const config = require(path.join(__dirname, 'config.js'));
 const RPC_URL = config.SYNDICA_RPC;
 const IDL_PATH = path.join(__dirname, 'roulette_game.json');
 const WALLETS_BASE_DIR = path.join(__dirname, 'test-wallets');
-const CONCURRENCY_LIMIT = 60; // Увеличено для поддержки высокой скорости
-const DELAY_BETWEEN_BATCHES_MS = 40; // Уменьшено для увеличения нагрузки до ~80 req/s
+const CONCURRENCY_LIMIT = 20; // Увеличено для поддержки высокой скорости
+const DELAY_BETWEEN_BATCHES_MS = 60; // Уменьшено для увеличения нагрузки до ~80 req/s
 
 // ==============================================================================
 //      КОНФИГУРАЦИЯ БОТОВ: ГРУППЫ, ТОКЕНЫ, ДЕЦИМАЛЫ

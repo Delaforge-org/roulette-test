@@ -161,8 +161,9 @@ async function gameLoop() {
                     }
                     // --- КОНЕЦ НОВОГО БЛОКА ---
 
-                    console.log(`[Orchestrator] Ждем ${COOLDOWN_AFTER_RANDOM_MS / 1000} секунд перед новым раундом...`);
-                    await new Promise(resolve => setTimeout(resolve, COOLDOWN_AFTER_RANDOM_MS));
+                    // --- ИЗМЕНЕНО: Удалено использование COOLDOWN_AFTER_RANDOM_MS ---
+                    console.log(`[Orchestrator] Ждем 5 секунд перед новым раундом...`);
+                    await new Promise(resolve => setTimeout(resolve, 5000));
                     break;
             }
         } catch (error) {

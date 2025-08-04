@@ -12,7 +12,7 @@ const IDL_PATH = path.join(__dirname, 'roulette_game.json');
 const WALLETS_BASE_DIR = path.join(__dirname, 'test-wallets');
 const API_BASE_URL = 'https://api.0xroulette.com/api';
 const CONCURRENCY_LIMIT = 80;
-const DELAY_BETWEEN_BATCHES_MS = 45;
+const DELAY_BETWEEN_BATCHES_MS = 20;
 
 const idl = JSON.parse(fs.readFileSync(IDL_PATH, 'utf8'));
 // --- ИЗМЕНЕНИЕ: PROGRAM_ID теперь всегда берется из IDL ---
@@ -56,12 +56,26 @@ function findInstructionDiscriminator(name) {
     return Buffer.from(instruction.discriminator);
 }
 
+// --- ИЗМЕНЕНО: Более информативная реализация runInParallel с прогрессом ---
 async function runInParallel(tasks, concurrencyLimit) {
-    const allResults = [];
+    const results = [];
     const executing = [];
+    let completed = 0;
+    const total = tasks.length;
+    let successes = 0;
+    let failures = 0;
+
     for (const task of tasks) {
-        const p = Promise.resolve().then(() => task());
-        allResults.push(p);
+        const p = Promise.resolve().then(() => task()).then(result => {
+            completed++;
+            if (result?.status === 'success') successes++;
+            if (result?.status === 'failed') failures++;
+            // Обновляем строку прогресса
+            process.stdout.write(`\rПрогресс выплат: ${completed}/${total} | Успешно: ${successes} | Ошибки: ${failures}`);
+            return result;
+        });
+        results.push(p);
+
         if (concurrencyLimit <= tasks.length) {
             const e = p.finally(() => executing.splice(executing.indexOf(e), 1));
             executing.push(e);
@@ -71,8 +85,12 @@ async function runInParallel(tasks, concurrencyLimit) {
         }
         await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES_MS));
     }
-    return Promise.all(allResults);
+    
+    await Promise.all(results);
+    process.stdout.write('\n'); // Новая строка после завершения
+    return results; 
 }
+
 
 async function claimWinForPlayer(botKeypair, roundToClaim, gameSessionPda) {
     const connection = getConnection();
@@ -84,7 +102,7 @@ async function claimWinForPlayer(botKeypair, roundToClaim, gameSessionPda) {
         const totalPayoutAmount = response.data.bets.reduce((sum, bet) => sum + (Number(bet.payoutAmount) || 0), 0);
         const alreadyClaimed = response.data.alreadyClaimed === true;
         if (totalPayoutAmount > 0 && !alreadyClaimed) {
-            console.log(`  -> ПОБЕДИТЕЛЬ: ${playerPubkey.toBase58()}. Сумма: ${totalPayoutAmount}. Отправка транзакции...`);
+            // Убраны логи, чтобы не засорять консоль при параллельном выполнении
             const tokenMint = new PublicKey(response.data.bets[0].tokenMint);
             const [vaultPda] = await PublicKey.findProgramAddress([Buffer.from('vault'), tokenMint.toBuffer()], PROGRAM_ID);
             const [playerBetsPda] = await PublicKey.findProgramAddress([Buffer.from('player_bets'), gameSessionPda.toBuffer(), playerPubkey.toBuffer()], PROGRAM_ID);
@@ -121,12 +139,11 @@ async function claimWinForPlayer(botKeypair, roundToClaim, gameSessionPda) {
 
             await connection.sendTransaction(transaction, [botKeypair], { skipPreflight: true });
 
-            console.log(`   -> УСПЕХ: Транзакция на получение выигрыша для ${playerPubkey.toBase58()} отправлена.`);
             return { status: 'success' };
         }
     } catch (error) {
         if (!error.response || error.response.status !== 404) {
-            console.error(`\n   -> ОШИБКА для ${playerPubkey.toBase58()}: ${error.message}`);
+            // Убраны логи, т.к. ошибки будут посчитаны в общем прогрессе
         }
         return { status: 'failed' };
     }
@@ -179,21 +196,16 @@ async function claimWinnings() {
         const results = await runInParallel(checkTasks, CONCURRENCY_LIMIT);
         const winnersToClaim = results.filter(Boolean);
         if (winnersToClaim.length > 0) {
-            console.log(`\n>>> Этап 2: Найдено ${winnersToClaim.length} победителей. Начинаем последовательную выплату...`);
-            let successCount = 0;
-            for (const [index, botKeypair] of winnersToClaim.entries()) {
-                try {
-                    const result = await claimWinForPlayer(botKeypair, roundToClaim, gameSessionPda);
-                    if (result?.status === 'success') {
-                        successCount++;
-                        process.stdout.write(`\rУспешных выплат: ${successCount}/${winnersToClaim.length}...`);
-                    }
-                } catch (err) {
-                    console.error(`\nОшибка при выплате для ${botKeypair.publicKey.toBase58()}: ${err.message}`);
-                }
-            }
-            process.stdout.write('\n');
-            console.log(`\nВыплаты завершены. Успешно: ${successCount} из ${winnersToClaim.length}.`);
+            console.log(`\n>>> Этап 2: Найдено ${winnersToClaim.length} победителей. Начинаем параллельную выплату...`);
+            
+            // --- ИЗМЕНЕНО: Заменяем последовательный цикл на параллельный ---
+            const claimTasks = winnersToClaim.map(botKeypair => 
+                () => claimWinForPlayer(botKeypair, roundToClaim, gameSessionPda)
+            );
+
+            await runInParallel(claimTasks, CONCURRENCY_LIMIT);
+            
+            console.log(`\nВыплаты завершены.`);
         } else {
             console.log("\nИНФО: Победители среди ботов в этом раунде не найдены.");
         }
