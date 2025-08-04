@@ -143,7 +143,9 @@ async function claimWinnings() {
             console.error("КРИТИЧЕСКАЯ ОШИБКА: Аккаунт GameSession не найден.");
             return;
         }
+        // --- ИЗМЕНЕНО: Добавлено поле authority в схему для корректного чтения ---
         const gameSessionLayout = borsh.struct([
+            borsh.publicKey('authority'),
             borsh.u64('current_round'), borsh.i64('round_start_time'), borsh.u8('round_status'),
             borsh.option(borsh.u8(), 'winning_number'), borsh.i64('bets_closed_timestamp'),
             borsh.i64('get_random_timestamp'), borsh.u8('bump'), borsh.option(borsh.publicKey(), 'last_bettor'),
