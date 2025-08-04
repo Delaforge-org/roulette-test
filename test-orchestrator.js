@@ -23,7 +23,13 @@ const ROUND_STATUS_LAYOUT = borsh.struct([
     borsh.publicKey('authority'),
     borsh.u64('current_round'),
     borsh.i64('round_start_time'),
-    borsh.u8('round_status'),
+    // --- ИЗМЕНЕНО: Используем borsh.rustEnum для корректного чтения статуса ---
+    borsh.rustEnum('round_status', {
+        NotStarted: 'NotStarted',
+        AcceptingBets: 'AcceptingBets',
+        BetsClosed: 'BetsClosed',
+        Completed: 'Completed',
+    }),
     borsh.option(borsh.u8(), 'winning_number'),
     borsh.i64('bets_closed_timestamp'),
     borsh.i64('get_random_timestamp'),
@@ -43,8 +49,8 @@ async function getRoundStatus() {
     }
     const decoded = ROUND_STATUS_LAYOUT.decode(accountInfo.data.slice(8));
     return {
-        status: ROUND_STATUS_MAP[decoded.round_status],
-        // startTime больше не нужен оркестратору
+        // --- ИЗМЕНЕНО: Читаем статус из enum-объекта ---
+        status: decoded.round_status.enum,
     };
 }
 
