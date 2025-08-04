@@ -2,20 +2,21 @@
 const path = require('path');
 const { Connection, PublicKey } = require('@solana/web3.js');
 const borsh = require('@coral-xyz/borsh');
+const axios = require('axios'); // Добавлено для HTTP-запросов
 
 const config = require(path.join(__dirname, 'config.js'));
 const { 
     PROGRAM_ID, 
-    BETTING_DURATION_MS, 
-    COOLDOWN_AFTER_CLOSE_MS, 
     COOLDOWN_AFTER_RANDOM_MS 
 } = config;
 
-const { startNewRound, closeBets, getRandom } = require(path.join(__dirname, 'game-actions.js'));
+// Удалены ненужные импорты startNewRound, closeBets, getRandom
 const { runBettingBots } = require(path.join(__dirname, 'bots-betting.js'));
 const { claimWinnings } = require(path.join(__dirname, 'bot-wins.js'));
 const { getConnection, rotateRpc } = require(path.join(__dirname, 'utils', 'connection.js'));
 const { sendSlackNotification } = require(path.join(__dirname, 'utils', 'slack-notifier.js'));
+
+const BACKEND_API_URL = 'http://localhost:3000/api'; // URL вашего бэкенда
 
 const ROUND_STATUS_LAYOUT = borsh.struct([
     borsh.u64('current_round'),
@@ -35,8 +36,23 @@ async function getRoundStatus() {
     const decoded = ROUND_STATUS_LAYOUT.decode(accountInfo.data.slice(8));
     return {
         status: ROUND_STATUS_MAP[decoded.round_status],
-        startTime: decoded.round_start_time.toNumber() * 1000 // Конвертируем Unix-время в мс
+        // startTime больше не нужен оркестратору
     };
+}
+
+// Новая функция для вызова API
+async function callGetRandomApi() {
+    try {
+        console.log(`[Orchestrator] Вызов POST ${BACKEND_API_URL}/get-random`);
+        const response = await axios.post(`${BACKEND_API_URL}/get-random`);
+        console.log('[Orchestrator] Успешный вызов API для получения случайного числа:', response.data);
+        return response.data;
+    } catch (error) {
+        const errorMessage = error.response ? JSON.stringify(error.response.data) : error.message;
+        console.error('[Orchestrator] Ошибка при вызове API для получения случайного числа:', errorMessage);
+        // Пробрасываем ошибку, чтобы ее обработал основной цикл
+        throw new Error(`API call to /get-random failed: ${errorMessage}`);
+    }
 }
 
 // --- ИЗМЕНЕНИЕ 2: Флаг для отслеживания первого запуска ставок ---
@@ -46,23 +62,21 @@ async function gameLoop() {
     console.log("ЛОГ: Оркестратор запущен. Получение статуса...");
     while (true) {
         try {
-            const { status, startTime } = await getRoundStatus();
+            const { status } = await getRoundStatus();
             console.log(`[Orchestrator] Текущий статус раунда: ${status}`);
 
             switch (status) {
                 case "Completed":
                 case "NotStarted":
                     hasPlacedBetsThisRound = false; // Сбрасываем флаг для нового раунда
-                    console.log("[Orchestrator] Начинаем новый раунд...");
-                    await startNewRound();
-                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    console.log("[Orchestrator] Ожидаем начала нового раунда от бэкенда...");
+                    await new Promise(resolve => setTimeout(resolve, 5000)); // Пауза перед следующей проверкой
                     break;
 
-                // --- ИЗМЕНЕНИЕ 3: Новая, умная логика для ставок ---
                 case "AcceptingBets":
                     if (!hasPlacedBetsThisRound) {
                         console.log("[Orchestrator] Идет прием ставок, запускаем ботов...");
-                        // Запускаем, но не ждем завершения, НО ловим возможные ошибки
+                        // Запускаем, но не ждем завершения
                         runBettingBots().catch(err => {
                             const errorMessage = err.message || 'Неизвестная ошибка';
                             console.error('[Orchestrator] КРИТИЧЕСКАЯ ОШИБКА в фоновом процессе размещения ставок:', errorMessage);
@@ -70,28 +84,18 @@ async function gameLoop() {
                         });
                         hasPlacedBetsThisRound = true;
                     }
-                    
-                    const timeElapsed = Date.now() - startTime;
-                    const timeRemaining = BETTING_DURATION_MS - timeElapsed;
-
-                    if (timeRemaining > 0) {
-                        console.log(`[Orchestrator] Ставки уже размещаются. Ожидаем ${Math.round(timeRemaining / 1000)} секунд до закрытия...`);
-                        await new Promise(resolve => setTimeout(resolve, timeRemaining));
-                    }
-                    
-                    console.log("[Orchestrator] Время вышло, закрываем ставки...");
-                    await closeBets();
-                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    console.log("[Orchestrator] Ставки размещаются. Ожидаем закрытия раунда от бэкенда...");
+                    await new Promise(resolve => setTimeout(resolve, 5000)); // Пауза перед следующей проверкой
                     break;
-                // --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
                 case "BetsClosed":
-                    console.log(`[Orchestrator] Ставки закрыты. Ждем ${COOLDOWN_AFTER_CLOSE_MS / 1000} секунд...`);
-                    await new Promise(resolve => setTimeout(resolve, COOLDOWN_AFTER_CLOSE_MS));
-                    console.log("[Orchestrator] Запрашиваем случайное число...");
-                    await getRandom();
+                    console.log(`[Orchestrator] Ставки закрыты. Ожидание 16 секунд для запроса случайного числа...`);
+                    await new Promise(resolve => setTimeout(resolve, 16000));
+
+                    console.log("[Orchestrator] Запрашиваем случайное число через API...");
+                    await callGetRandomApi();
                     
-                    // --- НОВЫЙ НАДЕЖНЫЙ БЛОК СБОРА ВЫИГРЫШЕЙ ---
+                    // Блок сбора выигрышей остается без изменений
                     console.log("[Orchestrator] Переход в режим сбора выигрышей...");
                     let claimsSuccessful = false;
                     while (!claimsSuccessful) {
