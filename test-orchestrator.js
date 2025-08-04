@@ -127,7 +127,7 @@ async function gameLoop() {
                                 throw new Error(criticalErrorMsg);
                             }
                             console.log(`[Orchestrator] Пауза 5 секунд перед следующей попыткой...`);
-                            await new Promise(resolve => setTimeout(resolve, 5000));
+                            await new Promise(resolve => setTimeout(resolve, 10000));
                         }
                     }
                     // --- КОНЕЦ НОВОГО БЛОКА ---
