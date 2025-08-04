@@ -19,9 +19,17 @@ const { sendSlackNotification } = require(path.join(__dirname, 'utils', 'slack-n
 const BACKEND_API_URL = 'http://localhost:3000/api'; // URL вашего бэкенда
 
 const ROUND_STATUS_LAYOUT = borsh.struct([
+    // --- ИЗМЕНЕНО: Добавлено поле authority и расширена структура для полного соответствия контракту ---
+    borsh.publicKey('authority'),
     borsh.u64('current_round'),
     borsh.i64('round_start_time'),
     borsh.u8('round_status'),
+    borsh.option(borsh.u8(), 'winning_number'),
+    borsh.i64('bets_closed_timestamp'),
+    borsh.i64('get_random_timestamp'),
+    borsh.u8('bump'),
+    borsh.option(borsh.publicKey(), 'last_bettor'),
+    borsh.u64('last_completed_round'),
 ]);
 const ROUND_STATUS_MAP = ["NotStarted", "AcceptingBets", "BetsClosed", "Completed"];
 
