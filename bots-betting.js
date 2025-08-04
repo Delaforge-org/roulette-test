@@ -9,8 +9,8 @@ const config = require(path.join(__dirname, 'config.js'));
 const RPC_URL = config.SYNDICA_RPC;
 const IDL_PATH = path.join(__dirname, 'roulette_game.json');
 const WALLETS_BASE_DIR = path.join(__dirname, 'test-wallets');
-const CONCURRENCY_LIMIT = 40; // Увеличено для поддержки высокой скорости
-const DELAY_BETWEEN_BATCHES_MS = 80; // Уменьшено для увеличения нагрузки до ~80 req/s
+const CONCURRENCY_LIMIT = 60; // Увеличено для поддержки высокой скорости
+const DELAY_BETWEEN_BATCHES_MS = 40; // Уменьшено для увеличения нагрузки до ~80 req/s
 
 // ==============================================================================
 //      КОНФИГУРАЦИЯ БОТОВ: ГРУППЫ, ТОКЕНЫ, ДЕЦИМАЛЫ
@@ -35,7 +35,6 @@ const TOKEN_CONFIG = {
             () => getRandomAmount(900, 1200),
             () => getRandomAmount(1200, 1500),
             () => getRandomAmount(1500, 1800),
-            () => getRandomAmount(1000, 1400),
         ]
     },
     SAO: {
@@ -46,7 +45,6 @@ const TOKEN_CONFIG = {
             () => getRandomAmount(450, 600),
             () => getRandomAmount(600, 750),
             () => getRandomAmount(750, 900),
-            () => getRandomAmount(500, 700),
         ]
     },
     LOI: {
@@ -57,7 +55,6 @@ const TOKEN_CONFIG = {
             () => getRandomAmount(75, 100),
             () => getRandomAmount(100, 125),
             () => getRandomAmount(125, 150),
-            () => getRandomAmount(80, 120),
         ]
     },
     USDC: {
@@ -68,7 +65,6 @@ const TOKEN_CONFIG = {
             () => getRandomAmount(3, 4),
             () => getRandomAmount(4, 5),
             () => getRandomAmount(5, 6),
-            () => getRandomAmount(3, 5),
         ]
     },
     OLS: {
@@ -79,7 +75,6 @@ const TOKEN_CONFIG = {
             () => getRandomAmount(54000, 72000),
             () => getRandomAmount(72000, 90000),
             () => getRandomAmount(90000, 108000),
-            () => getRandomAmount(60000, 80000),
         ]
     },
 };
