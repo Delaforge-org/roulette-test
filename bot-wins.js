@@ -11,8 +11,8 @@ const { getConnection } = require(path.join(__dirname, 'utils', 'connection.js')
 const IDL_PATH = path.join(__dirname, 'roulette_game.json');
 const WALLETS_BASE_DIR = path.join(__dirname, 'test-wallets');
 const API_BASE_URL = 'https://api.0xroulette.com/api';
-const CONCURRENCY_LIMIT = 80;
-const DELAY_BETWEEN_BATCHES_MS = 20;
+const CONCURRENCY_LIMIT = 60;
+const DELAY_BETWEEN_BATCHES_MS = 500;
 
 const idl = JSON.parse(fs.readFileSync(IDL_PATH, 'utf8'));
 // --- ИЗМЕНЕНИЕ: PROGRAM_ID теперь всегда берется из IDL ---
