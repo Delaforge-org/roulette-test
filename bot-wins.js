@@ -19,6 +19,13 @@ const idl = JSON.parse(fs.readFileSync(IDL_PATH, 'utf8'));
 const PROGRAM_ID = config.PROGRAM_ID;
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
+// --- НОВОЕ: Схема для VaultAccount ---
+const VAULT_ACCOUNT_LAYOUT = borsh.struct([
+    borsh.publicKey('token_mint'),
+    borsh.publicKey('token_account'),
+]);
+
+
 console.log(`ЛОГ: Конфигурация для выдачи выигрышей загружена. ID Программы: ${PROGRAM_ID.toBase58()}`);
 
 
@@ -84,25 +91,22 @@ async function claimWinForPlayer(botKeypair, roundToClaim, gameSessionPda) {
             const playerAta = await getAssociatedTokenAddress(tokenMint, playerPubkey);
             const vaultAccountInfo = await connection.getAccountInfo(vaultPda);
             if (!vaultAccountInfo) throw new Error(`Не удалось найти аккаунт хранилища (Vault) по адресу: ${vaultPda.toBase58()}`);
-            const vaultAta = new PublicKey(vaultAccountInfo.data.slice(40, 72));
-            const [claimRecordPda] = await PublicKey.findProgramAddress([Buffer.from('claim_record'), playerPubkey.toBuffer(), roundToClaim.toBuffer('le', 8)], PROGRAM_ID);
-            const claimRecordInfo = await connection.getAccountInfo(claimRecordPda);
-            if (claimRecordInfo) {
-                console.warn(`   -> ПРЕДУПРЕЖДЕНИЕ: Запись о выигрыше для ${playerPubkey.toBase58()} уже существует. Пропускаем.`);
-                return;
-            }
+            
+            // --- ИЗМЕНЕНО: Надежное получение vaultAta через borsh ---
+            const decodedVault = VAULT_ACCOUNT_LAYOUT.decode(vaultAccountInfo.data.slice(8));
+            const vaultAta = decodedVault.token_account;
+
+            // --- УДАЛЕНО: Логика, связанная с claimRecordPda ---
+
             const claimIx = new TransactionInstruction({
                 keys: [
                     { pubkey: playerPubkey, isSigner: true, isWritable: true },
                     { pubkey: gameSessionPda, isSigner: false, isWritable: false },
-                    { pubkey: playerBetsPda, isSigner: false, isWritable: false },
+                    { pubkey: playerBetsPda, isSigner: false, isWritable: true },
                     { pubkey: vaultPda, isSigner: false, isWritable: true },
                     { pubkey: vaultAta, isSigner: false, isWritable: true },
                     { pubkey: playerAta, isSigner: false, isWritable: true },
-                    { pubkey: claimRecordPda, isSigner: false, isWritable: true },
                     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-                    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-                    { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
                 ],
                 programId: PROGRAM_ID,
                 data: Buffer.concat([

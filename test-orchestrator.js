@@ -89,12 +89,37 @@ async function gameLoop() {
                     break;
 
                 case "BetsClosed":
-                    console.log(`[Orchestrator] Ставки закрыты. Ожидание 16 секунд для запроса случайного числа...`);
+                    console.log(`[Orchestrator] Ставки закрыты. Начинаем 16-секундное ожидание перед запросом случайного числа.`);
                     await new Promise(resolve => setTimeout(resolve, 16000));
+                    console.log("[Orchestrator] 16 секунд прошло. Начинаем процесс запроса случайного числа через API.");
 
-                    console.log("[Orchestrator] Запрашиваем случайное число через API...");
-                    await callGetRandomApi();
-                    
+                    // --- НОВЫЙ БЛОК: Механизм повторных попыток ---
+                    let getRandomSuccessful = false;
+                    let attempts = 0;
+                    const maxAttempts = 3;
+
+                    while (!getRandomSuccessful && attempts < maxAttempts) {
+                        attempts++;
+                        try {
+                            console.log(`[Orchestrator] Попытка ${attempts}/${maxAttempts}: Запрашиваем случайное число...`);
+                            await callGetRandomApi();
+                            getRandomSuccessful = true;
+                            console.log(`[Orchestrator] Попытка ${attempts}/${maxAttempts} успешна.`);
+                        } catch (apiError) {
+                            console.error(`[Orchestrator] Ошибка при вызове API (попытка ${attempts}/${maxAttempts}):`, apiError.message);
+                            if (attempts >= maxAttempts) {
+                                const criticalErrorMsg = `[Orchestrator] КРИТИЧЕСКАЯ ОШИБКА: Не удалось получить случайное число после ${maxAttempts} попыток.`;
+                                console.error(criticalErrorMsg);
+                                await sendSlackNotification(criticalErrorMsg);
+                                // Ошибка будет перехвачена внешним try/catch для общей логики обработки
+                                throw new Error(criticalErrorMsg);
+                            }
+                            console.log(`[Orchestrator] Пауза 5 секунд перед следующей попыткой...`);
+                            await new Promise(resolve => setTimeout(resolve, 5000));
+                        }
+                    }
+                    // --- КОНЕЦ НОВОГО БЛОКА ---
+
                     // Блок сбора выигрышей остается без изменений
                     console.log("[Orchestrator] Переход в режим сбора выигрышей...");
                     let claimsSuccessful = false;
