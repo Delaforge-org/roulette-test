@@ -15,8 +15,8 @@ const CONCURRENCY_LIMIT = 20;
 const DELAY_BETWEEN_BATCHES_MS = 80;
 
 const idl = JSON.parse(fs.readFileSync(IDL_PATH, 'utf8'));
-// --- ИЗМЕНЕНИЕ: Используем PROGRAM_ID из конфига, а не из IDL ---
-const PROGRAM_ID = config.PROGRAM_ID;
+// --- ИЗМЕНЕНИЕ: PROGRAM_ID теперь всегда берется из IDL ---
+const PROGRAM_ID = new PublicKey(idl.address);
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
 // --- НОВОЕ: Схема для VaultAccount ---

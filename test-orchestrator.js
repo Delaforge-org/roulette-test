@@ -3,12 +3,16 @@ const path = require('path');
 const { Connection, PublicKey } = require('@solana/web3.js');
 const borsh = require('@coral-xyz/borsh');
 const axios = require('axios'); // Добавлено для HTTP-запросов
+const fs = require('fs'); // Добавлено
 
 const config = require(path.join(__dirname, 'config.js'));
 const { 
-    PROGRAM_ID, 
-    COOLDOWN_AFTER_RANDOM_MS 
+    COOLDOWN_AFTER_CLOSE_MS // --- ИЗМЕНЕНО: импортируем COOLDOWN_AFTER_CLOSE_MS
 } = config;
+
+// --- ИЗМЕНЕНО: Загрузка PROGRAM_ID из IDL, а не из config.js ---
+const idl = JSON.parse(fs.readFileSync(path.join(__dirname, 'roulette_game.json'), 'utf8'));
+const PROGRAM_ID = new PublicKey(idl.address);
 
 // Удалены ненужные импорты startNewRound, closeBets, getRandom
 const { runBettingBots } = require(path.join(__dirname, 'bots-betting.js'));
@@ -18,18 +22,17 @@ const { sendSlackNotification } = require(path.join(__dirname, 'utils', 'slack-n
 
 const BACKEND_API_URL = 'http://localhost:3000/api'; // URL вашего бэкенда
 
+// --- ИЗМЕНЕНО: Исправлена схема для borsh.rustEnum и убран ROUND_STATUS_MAP ---
 const ROUND_STATUS_LAYOUT = borsh.struct([
-    // --- ИЗМЕНЕНО: Добавлено поле authority и расширена структура для полного соответствия контракту ---
     borsh.publicKey('authority'),
     borsh.u64('current_round'),
     borsh.i64('round_start_time'),
-    // --- ИЗМЕНЕНО: Используем borsh.rustEnum для корректного чтения статуса ---
-    borsh.rustEnum('round_status', {
-        NotStarted: 'NotStarted',
-        AcceptingBets: 'AcceptingBets',
-        BetsClosed: 'BetsClosed',
-        Completed: 'Completed',
-    }),
+    borsh.rustEnum([
+        borsh.struct([], 'NotStarted'),
+        borsh.struct([], 'AcceptingBets'),
+        borsh.struct([], 'BetsClosed'),
+        borsh.struct([], 'Completed'),
+    ], 'round_status'),
     borsh.option(borsh.u8(), 'winning_number'),
     borsh.i64('bets_closed_timestamp'),
     borsh.i64('get_random_timestamp'),
@@ -37,9 +40,8 @@ const ROUND_STATUS_LAYOUT = borsh.struct([
     borsh.option(borsh.publicKey(), 'last_bettor'),
     borsh.u64('last_completed_round'),
 ]);
-const ROUND_STATUS_MAP = ["NotStarted", "AcceptingBets", "BetsClosed", "Completed"];
 
-// --- ИЗМЕНЕНИЕ 1: Функция теперь возвращает объект ---
+// --- ИЗМЕНЕНО: Функция теперь использует enum напрямую ---
 async function getRoundStatus() {
     const connection = getConnection();
     const [gameSessionPda] = await PublicKey.findProgramAddress([Buffer.from('game_session')], PROGRAM_ID);
@@ -49,7 +51,6 @@ async function getRoundStatus() {
     }
     const decoded = ROUND_STATUS_LAYOUT.decode(accountInfo.data.slice(8));
     return {
-        // --- ИЗМЕНЕНО: Читаем статус из enum-объекта ---
         status: decoded.round_status.enum,
     };
 }
@@ -103,9 +104,10 @@ async function gameLoop() {
                     break;
 
                 case "BetsClosed":
-                    console.log(`[Orchestrator] Ставки закрыты. Начинаем 16-секундное ожидание перед запросом случайного числа.`);
-                    await new Promise(resolve => setTimeout(resolve, 16000));
-                    console.log("[Orchestrator] 16 секунд прошло. Начинаем процесс запроса случайного числа через API.");
+                    // --- ИЗМЕНЕНО: Используем COOLDOWN_AFTER_CLOSE_MS из конфига ---
+                    console.log(`[Orchestrator] Ставки закрыты. Начинаем ${COOLDOWN_AFTER_CLOSE_MS / 1000}-секундное ожидание перед запросом случайного числа.`);
+                    await new Promise(resolve => setTimeout(resolve, COOLDOWN_AFTER_CLOSE_MS));
+                    console.log(`[Orchestrator] ${COOLDOWN_AFTER_CLOSE_MS / 1000} секунд прошло. Начинаем процесс запроса случайного числа через API.`);
 
                     // --- НОВЫЙ БЛОК: Механизм повторных попыток ---
                     let getRandomSuccessful = false;

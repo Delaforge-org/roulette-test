@@ -14,9 +14,6 @@ module.exports = {
     QUICKNODE_WSS,
     SYNDICA_RPC,
     SLACK_WEBHOOK_URL,
-    MONGO_URI,  
-    PROGRAM_ID: new PublicKey("ufYwxC4cqYQL99EENYvf8qgfJqm2Udz6CSxym6fCabh"),
-    BETTING_DURATION_MS: 5* 60 * 1000,        // 1 минута на ставки
-    COOLDOWN_AFTER_CLOSE_MS: 15 * 1000,    // 15 секунд пауза после закрытия ставок
-    COOLDOWN_AFTER_RANDOM_MS: 30 * 1000,   // 30 секунд пауза после получения выигрышного числа
+    MONGO_URI,       // 1 минута на ставки
+    COOLDOWN_AFTER_CLOSE_MS: 16 * 1000,    // 15 секунд пауза после закрытия ставок  // 30 секунд пауза после получения выигрышного числа
 };
