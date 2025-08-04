@@ -98,23 +98,24 @@ async function claimWinForPlayer(botKeypair, roundToClaim, gameSessionPda) {
     try {
         const apiUrl = `${API_BASE_URL}/player-round-bets?player=${playerPubkey.toBase58()}&round=${roundToClaim.toString()}`;
         const response = await axios.get(apiUrl, { httpsAgent });
-        if (!response.data || !response.data.bets || response.data.bets.length === 0) return;
+        if (!response.data || !response.data.bets || response.data.bets.length === 0) {
+             return { status: 'no_win' }; // Явно указываем, что выигрыша нет
+        }
+
         const totalPayoutAmount = response.data.bets.reduce((sum, bet) => sum + (Number(bet.payoutAmount) || 0), 0);
         const alreadyClaimed = response.data.alreadyClaimed === true;
+
         if (totalPayoutAmount > 0 && !alreadyClaimed) {
-            // Убраны логи, чтобы не засорять консоль при параллельном выполнении
             const tokenMint = new PublicKey(response.data.bets[0].tokenMint);
             const [vaultPda] = await PublicKey.findProgramAddress([Buffer.from('vault'), tokenMint.toBuffer()], PROGRAM_ID);
             const [playerBetsPda] = await PublicKey.findProgramAddress([Buffer.from('player_bets'), gameSessionPda.toBuffer(), playerPubkey.toBuffer()], PROGRAM_ID);
             const playerAta = await getAssociatedTokenAddress(tokenMint, playerPubkey);
+
             const vaultAccountInfo = await connection.getAccountInfo(vaultPda);
             if (!vaultAccountInfo) throw new Error(`Не удалось найти аккаунт хранилища (Vault) по адресу: ${vaultPda.toBase58()}`);
             
-            // --- ИЗМЕНЕНО: Надежное получение vaultAta через borsh ---
             const decodedVault = VAULT_ACCOUNT_LAYOUT.decode(vaultAccountInfo.data.slice(8));
             const vaultAta = decodedVault.token_account;
-
-            // --- УДАЛЕНО: Логика, связанная с claimRecordPda ---
 
             const claimIx = new TransactionInstruction({
                 keys: [
@@ -141,9 +142,13 @@ async function claimWinForPlayer(botKeypair, roundToClaim, gameSessionPda) {
 
             return { status: 'success' };
         }
+        
+        return { status: 'no_win' }; // Нет выигрыша или он уже забран
+        
     } catch (error) {
         if (!error.response || error.response.status !== 404) {
-            // Убраны логи, т.к. ошибки будут посчитаны в общем прогрессе
+            // Возвращаем логирование ошибок
+            console.error(`\n   -> ОШИБКА для ${playerPubkey.toBase58()}: ${error.message}`);
         }
         return { status: 'failed' };
     }
@@ -160,7 +165,6 @@ async function claimWinnings() {
             console.error("КРИТИЧЕСКАЯ ОШИБКА: Аккаунт GameSession не найден.");
             return;
         }
-        // --- ИЗМЕНЕНО: Добавлено поле authority в схему для корректного чтения ---
         const gameSessionLayout = borsh.struct([
             borsh.publicKey('authority'),
             borsh.u64('current_round'), borsh.i64('round_start_time'), borsh.u8('round_status'),
@@ -198,7 +202,6 @@ async function claimWinnings() {
         if (winnersToClaim.length > 0) {
             console.log(`\n>>> Этап 2: Найдено ${winnersToClaim.length} победителей. Начинаем параллельную выплату...`);
             
-            // --- ИЗМЕНЕНО: Заменяем последовательный цикл на параллельный ---
             const claimTasks = winnersToClaim.map(botKeypair => 
                 () => claimWinForPlayer(botKeypair, roundToClaim, gameSessionPda)
             );
