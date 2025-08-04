@@ -56,7 +56,7 @@ function findInstructionDiscriminator(name) {
     return Buffer.from(instruction.discriminator);
 }
 
-// --- ИЗМЕНЕНО: Более информативная реализация runInParallel с прогрессом ---
+// --- ИЗМЕНЕНО: Исправлена ошибка - теперь функция возвращает результат, а не обещания ---
 async function runInParallel(tasks, concurrencyLimit) {
     const results = [];
     const executing = [];
@@ -86,9 +86,9 @@ async function runInParallel(tasks, concurrencyLimit) {
         await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES_MS));
     }
     
-    await Promise.all(results);
+    const finalResults = await Promise.all(results); // Дожидаемся всех результатов
     process.stdout.write('\n'); // Новая строка после завершения
-    return results; 
+    return finalResults; // Возвращаем массив результатов
 }
 
 
