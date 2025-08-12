@@ -102,6 +102,21 @@ const BET_TYPES = {
 const BET_TYPE_VALUES = Object.values(BET_TYPES);
 
 /**
+ * НОВАЯ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ
+ * Оборачивает промис в тайм-аут. Если промис не выполняется за ms, он будет отклонен.
+ * @param {Promise} promise - Промис, который нужно выполнить.
+ * @param {number} ms - Время ожидания в миллисекундах.
+ * @returns {Promise}
+ */
+function withTimeout(promise, ms) {
+    const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)
+    );
+    return Promise.race([promise, timeout]);
+}
+
+
+/**
  * Вспомогательная функция для перевода токенов в их наименьшие единицы.
  * @param {number} amount - Сумма в обычных токенах (целое число).
  * @param {number} decimals - Количество знаков после запятой у токена.
@@ -199,7 +214,17 @@ async function runInParallel(tasks, concurrencyLimit) {
     const executing = [];
 
     for (const task of tasks) {
-        const p = Promise.resolve().then(() => task());
+        // --- ИЗМЕНЕНИЕ: Оборачиваем каждую задачу в тайм-аут ---
+        // Если задача выполняется дольше 5 секунд, она будет принудительно завершена с ошибкой.
+        const p = withTimeout(task(), 5000) // 5-секундный тайм-аут на каждую ставку
+            .catch(error => {
+                // Этот catch нужен, чтобы "зависшие" боты не вызывали UnhandledPromiseRejection.
+                // Их ошибки уже логируются внутри самой задачи (task).
+                if (error.message.includes('Timeout')) {
+                    console.error(`[ParallelRunner] ЗАДАЧА ПРЕРВАНА ПО ТАЙМ-АУТУ. Это экономит время.`);
+                }
+            });
+
         results.push(p);
 
         if (concurrencyLimit <= tasks.length) {

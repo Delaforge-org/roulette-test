@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Добавляем стандартный путь установки Solana в PATH
+export PATH="${HOME}/.local/share/solana/install/active_release/bin:${PATH}"
+
 # --- Настройка ---
 # Убедитесь, что ваш solana CLI настроен на devnet и использует кошелек,
 # с которого будет идти оплата за транзакции.
@@ -46,7 +49,7 @@ for ticker in "${TICKERS[@]}"; do
       --fee-payer ~/.config/solana/id.json # ВАЖНО: Укажите здесь путь к вашему основному кошельку-плательщику
 
     echo "OK"
-    sleep 0.2 # Небольшая задержка для стабильности
+    sleep 1 # Небольшая задержка для стабильности
   done < "$ADDR_FILE"
 done
 
